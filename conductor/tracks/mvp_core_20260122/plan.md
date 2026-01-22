@@ -5,9 +5,9 @@
     - [x] Create `Dockerfile` for Frontend (React).
     - [x] Create `Dockerfile` for Backend (FastAPI).
     - [x] Create `docker-compose.yml` to orchestrate services.
-- [ ] Task: Initialize the FastAPI backend.
-    - [ ] Write basic health check endpoint.
-    - [ ] Configure environment variable management for API keys.
+- [x] Task: Initialize the FastAPI backend. 6a8277d
+    - [x] Write basic health check endpoint.
+    - [x] Configure environment variable management for API keys.
 - [ ] Task: Initialize the React frontend.
     - [ ] Set up Tailwind CSS.
     - [ ] Verify frontend can communicate with backend.
