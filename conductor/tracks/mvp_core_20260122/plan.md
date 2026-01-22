@@ -1,10 +1,10 @@
 # Implementation Plan - MVP Core: Interactive World Map with AI News Summaries
 
 ## Phase 1: Project Scaffolding & Environment
-- [ ] Task: Set up the project structure with Docker and Docker Compose.
-    - [ ] Create `Dockerfile` for Frontend (React).
-    - [ ] Create `Dockerfile` for Backend (FastAPI).
-    - [ ] Create `docker-compose.yml` to orchestrate services.
+- [x] Task: Set up the project structure with Docker and Docker Compose. 906b4d1
+    - [x] Create `Dockerfile` for Frontend (React).
+    - [x] Create `Dockerfile` for Backend (FastAPI).
+    - [x] Create `docker-compose.yml` to orchestrate services.
 - [ ] Task: Initialize the FastAPI backend.
     - [ ] Write basic health check endpoint.
     - [ ] Configure environment variable management for API keys.
