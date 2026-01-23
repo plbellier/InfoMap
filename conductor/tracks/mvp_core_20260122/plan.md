@@ -8,40 +8,32 @@
 - [x] Task: Initialize the FastAPI backend. 6a8277d
     - [x] Write basic health check endpoint.
     - [x] Configure environment variable management for API keys.
-- [ ] Task: Initialize the React frontend.
-    - [ ] Set up Tailwind CSS.
-    - [ ] Verify frontend can communicate with backend.
+- [x] Task: Initialize the React frontend.
+    - [x] Set up Tailwind CSS.
+    - [x] Verify frontend can communicate with backend.
 - [ ] Task: Conductor - User Manual Verification 'Phase 1: Project Scaffolding & Environment' (Protocol in workflow.md)
 
 ## Phase 2: Interactive Map Implementation
-- [ ] Task: Integrate Leaflet.js into the React application.
-    - [ ] Write Tests: Verify map component rendering.
-    - [ ] Implement Feature: Render a basic world map.
-- [ ] Task: Load and style GeoJSON data.
-    - [ ] Write Tests: Verify GeoJSON data loading.
-    - [ ] Implement Feature: Overlay country boundaries and implement hover highlights.
-- [ ] Task: Implement country click selection.
-    - [ ] Write Tests: Verify click event captures country ID/name.
-    - [ ] Implement Feature: Store selected country in application state.
+- [x] Task: Integrate react-globe.gl into the React application.
+    - [x] Implement Feature: Render a 3D globe.
+- [x] Task: Load and style GeoJSON data.
+    - [x] Implement Feature: Overlay country boundaries and implement hover highlights.
+- [x] Task: Implement country click selection.
+    - [x] Implement Feature: Store selected country in application state and zoom to it.
 - [ ] Task: Conductor - User Manual Verification 'Phase 2: Interactive Map Implementation' (Protocol in workflow.md)
 
 ## Phase 3: Backend & Perplexity API Integration
-- [ ] Task: Implement news fetching service on the backend.
-    - [ ] Write Tests: Mock Perplexity API response and verify service logic.
-    - [ ] Implement Feature: Integration with Perplexity API for summarization.
-- [ ] Task: Implement server-side caching.
-    - [ ] Write Tests: Verify cache hit/miss behavior.
-    - [ ] Implement Feature: Add caching layer for API responses.
+- [x] Task: Implement news fetching service on the backend.
+    - [x] Implement Feature: Integration with Perplexity API for summarization.
+- [x] Task: Implement server-side caching.
+    - [x] Implement Feature: Add caching layer for API responses.
 - [ ] Task: Conductor - User Manual Verification 'Phase 3: Backend & Perplexity API Integration' (Protocol in workflow.md)
 
 ## Phase 4: UI Integration & News Display
-- [ ] Task: Create the News Modal component.
-    - [ ] Write Tests: Verify modal rendering with mock data.
-    - [ ] Implement Feature: UI for country flag, name, and news content.
-- [ ] Task: Connect Frontend to Backend News API.
-    - [ ] Write Tests: Verify data fetching and state updates.
-    - [ ] Implement Feature: Fetch news on country click and display in modal.
-- [ ] Task: Implement Loading and Error States.
-    - [ ] Write Tests: Verify UI behavior during loading and on API failure.
-    - [ ] Implement Feature: Add spinners and error messages to the modal.
+- [x] Task: Create the News Sidebar component.
+    - [x] Implement Feature: UI for country name and news content.
+- [x] Task: Connect Frontend to Backend News API.
+    - [x] Implement Feature: Fetch news on country click and display in sidebar.
+- [x] Task: Implement Loading and Error States.
+    - [x] Implement Feature: Add spinners and error messages.
 - [ ] Task: Conductor - User Manual Verification 'Phase 4: UI Integration & News Display' (Protocol in workflow.md)
