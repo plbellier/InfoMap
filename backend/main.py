@@ -2,42 +2,190 @@ import os
 import httpx
 import json
 import time
+import logging
 from datetime import datetime
-from fastapi import FastAPI, HTTPException
+from typing import Optional, List
+
+from fastapi import FastAPI, HTTPException, Request, Depends
+from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
+from starlette.middleware.sessions import SessionMiddleware
+from authlib.integrations.starlette_client import OAuth
+
+from database import get_db_service
+from models import User, DailyQuota
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger("infomap-api")
 
 # Use absolute path for .env
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 env_path = os.path.join(BASE_DIR, '.env')
 load_dotenv(dotenv_path=env_path)
 
-QUOTA_FILE = os.path.join(BASE_DIR, 'quota.json')
-CACHE_FILE = os.path.join(BASE_DIR, 'cache.json')
-DAILY_LIMIT = 15
-CACHE_EXPIRY = 4 * 3600  # 4 hours in seconds (as requested for refresh frequency)
+# Auth Configuration
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
+GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
+SESSION_SECRET_KEY = os.getenv("SESSION_SECRET_KEY", "temporary-secret-key-change-it")
+DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{os.path.join(BASE_DIR, 'infomap.db')}")
 
 app = FastAPI(title="InfoMap API Pro")
 
+# Session Middleware
+app.add_middleware(
+    SessionMiddleware, 
+    secret_key=SESSION_SECRET_KEY,
+    max_age=3600 * 24 * 7  # 7 days
+)
+
+# CORS configuration
+allowed_origins = os.getenv("ALLOWED_ORIGINS", "*").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# OAuth Setup
+oauth = OAuth()
+oauth.register(
+    name='google',
+    client_id=GOOGLE_CLIENT_ID,
+    client_secret=GOOGLE_CLIENT_SECRET,
+    server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
+    client_kwargs={
+        'scope': 'openid email profile'
+    }
+)
+
+# Database Service
+db_service = get_db_service(DATABASE_URL)
+
 PERPLEXITY_API_KEY = os.getenv("PERPLEXITY_API_KEY")
 PERPLEXITY_URL = "https://api.perplexity.ai/chat/completions"
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
 
-# --- Helper Functions ---
+# --- Dependencies ---
+
+async def get_current_user(request: Request):
+    user = request.session.get('user')
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    return user
+
+async def get_admin_user(user: dict = Depends(get_current_user)):
+    db_user = db_service.get_or_create_user(user['email'])
+    if not db_user.is_admin:
+        logger.warning(f"Unauthorized admin access attempt by {user['email']}")
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return db_user
+
+# --- Models for Admin ---
+class QuotaUpdate(BaseModel):
+    email: str
+    max_daily_quota: int
+
+# --- Auth Routes ---
+
+@app.get("/login")
+async def login(request: Request):
+    redirect_uri = request.url_for('auth')
+    return await oauth.google.authorize_redirect(request, str(redirect_uri))
+
+@app.get("/auth")
+async def auth(request: Request):
+    try:
+        token = await oauth.google.authorize_access_token(request)
+        userinfo = token.get('userinfo')
+        if not userinfo:
+            userinfo = await oauth.google.parse_id_token(request, token)
+        
+        if userinfo:
+            email = userinfo.get("email")
+            request.session['user'] = {
+                "email": email,
+                "name": userinfo.get("name"),
+                "picture": userinfo.get("picture")
+            }
+            db_service.get_or_create_user(email)
+            logger.info(f"User logged in: {email}")
+            
+    except Exception as e:
+        logger.error(f"Auth error: {e}")
+    
+    return RedirectResponse(url=FRONTEND_URL)
+
+@app.get("/logout")
+async def logout(request: Request):
+    request.session.pop('user', None)
+    return RedirectResponse(url=FRONTEND_URL)
+
+@app.get("/me")
+async def get_me(request: Request):
+    user = request.session.get('user')
+    if not user:
+        return {"authenticated": False}
+    
+    db_user = db_service.get_or_create_user(user['email'])
+    return {
+        "authenticated": True,
+        "user": user,
+        "is_admin": db_user.is_admin
+    }
+
+# --- Admin Routes ---
+
+@app.get("/admin/users")
+async def list_users(admin: User = Depends(get_admin_user)):
+    from sqlmodel import Session, select
+    with Session(db_service.engine) as session:
+        statement = select(User)
+        users = session.exec(statement).all()
+        return users
+
+@app.post("/admin/quota")
+async def update_user_quota(update: QuotaUpdate, admin: User = Depends(get_admin_user)):
+    from sqlmodel import Session, select
+    with Session(db_service.engine) as session:
+        statement = select(User).where(User.email == update.email)
+        user = session.exec(statement).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        user.max_daily_quota = update.max_daily_quota
+        session.add(user)
+        session.commit()
+        logger.info(f"Admin {admin.email} updated quota for {update.email} to {update.max_daily_quota}")
+        return {"status": "success", "email": update.email, "new_quota": user.max_daily_quota}
+
+# --- News & Quota Routes ---
+
+@app.get("/quota")
+async def check_quota(user: dict = Depends(get_current_user)):
+    today = datetime.now().strftime('%Y-%m-%d')
+    db_user = db_service.get_or_create_user(user['email'])
+    count = db_service.get_daily_count(db_user.id, today)
+    return {
+        "date": today,
+        "count": count,
+        "max": db_user.max_daily_quota
+    }
+
+@app.get("/health")
+async def health_check():
+    return {"status": "ok", "timestamp": time.time()}
 
 async def get_country_stats(country):
-    """Fetch population and other stats from REST Countries API."""
     try:
         async with httpx.AsyncClient() as client:
-            # We search by name. REST Countries v3.1
             url = f"https://restcountries.com/v3.1/name/{country}?fullText=true"
             response = await client.get(url, timeout=10.0)
             if response.status_code == 200:
@@ -50,178 +198,60 @@ async def get_country_stats(country):
                     "flag_emoji": data.get("flag", "")
                 }
     except Exception as e:
-        print(f"Error fetching country stats: {e}")
+        logger.error(f"Error fetching country stats for {country}: {e}")
     return None
-
-def get_quota():
-    """Returns the current quota. Resets automatically at midnight (UTC/Server Time)."""
-    today = datetime.now().strftime('%Y-%m-%d')
-    if not os.path.exists(QUOTA_FILE):
-        return {"date": today, "count": 0}
-    
-    try:
-        with open(QUOTA_FILE, 'r') as f:
-            data = json.load(f)
-            # If the stored date is not today, we reset the count to 0
-            if data.get("date") != today:
-                return {"date": today, "count": 0}
-            return data
-    except (FileNotFoundError, json.JSONDecodeError, KeyError) as e:
-        print(f"Quota read error/reset: {e}")
-        return {"date": today, "count": 0}
-
-def update_quota():
-    quota = get_quota()
-    quota["count"] += 1
-    with open(QUOTA_FILE, 'w') as f:
-        json.dump(quota, f)
-    return quota["count"]
-
-def get_cached_news(country):
-    if not os.path.exists(CACHE_FILE):
-        return None
-    try:
-        with open(CACHE_FILE, 'r') as f:
-            cache = json.load(f)
-            # 1. Try exact key match
-            item = cache.get(country)
-            
-            # 2. Strategy: Falling back to simple country name if composite key fails
-            # This handles the transition and provides a default if relevant
-            if not item and "_" in country:
-                simple_country = country.split('_')[0]
-                item = cache.get(simple_country)
-            
-            if item and (time.time() - item['timestamp'] < CACHE_EXPIRY):
-                return item['data']
-    except (FileNotFoundError, json.JSONDecodeError) as e:
-        print(f"Cache read error: {e}")
-        return None
-    return None
-
-def set_cached_news(country, data):
-    cache = {}
-    if os.path.exists(CACHE_FILE):
-        try:
-            with open(CACHE_FILE, 'r') as f:
-                cache = json.load(f)
-        except (json.JSONDecodeError, FileNotFoundError):
-            pass
-    
-    cache[country] = {
-        "timestamp": time.time(),
-        "data": data
-    }
-    with open(CACHE_FILE, 'w') as f:
-        json.dump(cache, f)
-
-# --- Routes ---
-
-@app.get("/quota")
-async def check_quota():
-    return get_quota()
-
-@app.get("/health")
-async def health_check():
-    return {"status": "ok", "timestamp": time.time()}
 
 @app.get("/news/{country}")
-async def get_country_news(country: str, time_filter: str = "24h", topic: str = "General"):
+async def get_country_news(
+    country: str, 
+    time_filter: str = "24h", 
+    topic: str = "General",
+    user: dict = Depends(get_current_user)
+):
     if not country or country == "undefined":
         raise HTTPException(status_code=400, detail="Invalid country name.")
     
-    # Supported filters check
+    today = datetime.now().strftime('%Y-%m-%d')
+    email = user['email']
+    
+    if not db_service.has_quota_remaining(email, today):
+        logger.warning(f"Quota EXCEEDED for {email}")
+        raise HTTPException(status_code=429, detail="Daily API quota reached.")
+
     if time_filter not in ["24h", "7d"]:
         time_filter = "24h"
-    
     if topic not in ["General", "Economy", "Politics", "Tech", "Military"]:
         topic = "General"
 
-    # Time string builder
     time_str = "au cours des dernières 24 heures" if time_filter == "24h" else "strictement depuis lundi dernier (cette semaine)"
     
-    # Specialized Expert Templates
     templates = {
         "General": f"Identifie les 5 événements majeurs qui font actuellement la une en {country}. Privilégie les faits marquants ayant un impact national {time_str}.",
-        "Politics": f"Cherche les 5 développements les plus importants concernant la politique intérieure, le gouvernement, les élections et les nouvelles législations en {country} {time_str}. Ignore les faits divers.",
-        "Economy": f"Fais un rapport sur les 5 points clés de l'actualité économique en {country} {time_str}. Concentre-toi sur : la macroéconomie (PIB, Inflation), les décisions de la banque centrale, les marchés boursiers locaux et les annonces majeures des grandes entreprises.",
-        "Tech": f"Quelles sont les 5 actualités technologiques et scientifiques les plus marquantes en {country} {time_str} ? Couvre un large spectre incluant : l'intelligence artificielle, les innovations digitales, la cyber-sécurité, ainsi que les activités majeures des grandes entreprises tech et les avancées scientifiques.",
-        "Military": f"Analyse la situation sécuritaire en {country} {time_str}. Liste les 5 informations critiques concernant : la défense nationale, les acquisitions militaires, les tensions aux frontières, les alliances stratégiques et les opérations de renseignement."
+        "Politics": f"Cherche les 5 développements les plus importants concernant la politique intérieure, le gouvernement, les élections et les nouvelles législations en {country} {time_str}.",
+        "Economy": f"Fais un rapport sur les 5 points clés de l'actualité économique en {country} {time_str}.",
+        "Tech": f"Quelles sont les 5 actualités technologiques et scientifiques les plus marquantes en {country} {time_str} ?",
+        "Military": f"Analyse la situation sécuritaire en {country} {time_str}."
     }
 
     user_prompt = templates[topic]
-
-    # 1. Check Cache with composite key: [Pays]_[Temps]_[Sujet]
-    cache_key = f"{country}_{time_filter}_{topic}"
-    cached = get_cached_news(cache_key)
-    
-    # Check if cached is a dict and has "news" (legacy data check)
-    if isinstance(cached, dict) and "news" in cached:
-        print(f"Cache HIT for {cache_key}")
-        return {
-            "country": country, 
-            "time_filter": time_filter,
-            "topic": topic,
-            "news": cached["news"], 
-            "trends": cached.get("trends", []),
-            "stats": cached.get("stats"),
-            "from_cache": True, 
-            "quota": get_quota()["count"]
-        }
-    elif cached:
-        print(f"Cache legacy/invalid for {cache_key}, ignoring.")
-    # If it's a list (legacy) or other type, we skip it and fetch fresh data
-
-    # 2. Check Quota
-    quota = get_quota()
-    if quota["count"] >= DAILY_LIMIT:
-        print(f"Quota EXCEEDED for {country}")
-        raise HTTPException(status_code=429, detail="Daily API quota reached (Max 20).")
-
-    # 3. Fetch Country Stats (Concurrent)
     stats_task = get_country_stats(country)
     
-    # 4. Call API for News & Trends
     if not PERPLEXITY_API_KEY:
         stats = await stats_task
-        mock_data = [
-            {"titre": f"[{topic}] Event in {country}", "date": "2024-01-22", "source_url": "https://example.com/1"},
-            {"titre": f"[{topic}] Update for {country}", "date": "2024-01-21", "source_url": "https://example.com/2"},
-            {"titre": f"[{topic}] Developments", "date": "2024-01-20", "source_url": "https://example.com/3"},
-            {"titre": f"[{topic}] Report", "date": "2024-01-19", "source_url": "https://example.com/4"},
-            {"titre": f"[{topic}] News", "date": "2024-01-18", "source_url": "https://example.com/5"},
-        ]
-        mock_trends = ["#Stability", "#Growth", "#Innovation"]
+        mock_data = [{"titre": f"[{topic}] News in {country}", "date": today, "source_url": "#"}] * 5
         return {
-            "country": country, 
-            "time_filter": time_filter,
-            "topic": topic,
-            "news": mock_data, 
-            "trends": mock_trends,
-            "stats": stats,
-            "from_cache": False, 
-            "quota": quota["count"]
+            "country": country, "time_filter": time_filter, "topic": topic,
+            "news": mock_data, "trends": [], "stats": stats, "from_cache": False,
+            "quota": db_service.get_daily_count(db_service.get_or_create_user(email).id, today)
         }
 
-    print(f"Calling Perplexity for {country} [{time_filter} | {topic}] (Quota: {quota['count']}/{DAILY_LIMIT})")
-    
     system_prompt = (
-        "Tu es un analyste de renseignement expert. Ta mission est d'identifier les informations les plus critiques et factuelles.\n"
-        "Sources : Privilégie les agences de presse majeures (Reuters, AP, AFP), les médias nationaux réputés et les rapports officiels. Ignore les tabloïds, les rumeurs non vérifiées et le contenu promotionnel.\n"
-        "CONTENU : Assure-toi que les 5 items traitent de SUJETS DIFFÉRENTS. Évite absolument les doublons ou plusieurs news sur un même événement précis.\n"
-        "Format : Retourne UNIQUEMENT un objet JSON valide contenant :\n"
-        "1. 'news': une liste de 5 items. Chaque item doit avoir : 'titre', 'date', 'source_url'.\n"
-        "IMPORTANT : Le champ 'titre' doit être du texte pur. Ne mets JAMAIS de Markdown (pas de #, **, ##, etc.).\n"
-        "LE CHAMP 'date' DOIT TOUJOURS ÊTRE AU FORMAT : 'JJ Mois AAAA' (ex: '22 Janvier 2026').\n"
-        "PAS de résumé, PAS de texte introductif, juste le JSON."
+        "Tu es un analyste de renseignement expert. Retourne UNIQUEMENT un objet JSON valide contenant :\n"
+        "1. 'news': une liste de 5 items avec 'titre', 'date', 'source_url'.\n"
+        "PAS de texte introductif, juste le JSON."
     )
     
-    # API Call with refined dynamic prompt
-    headers = {
-        "Authorization": f"Bearer {PERPLEXITY_API_KEY}",
-        "Content-Type": "application/json"
-    }
-
+    headers = {"Authorization": f"Bearer {PERPLEXITY_API_KEY}", "Content-Type": "application/json"}
     payload = {
         "model": "sonar-pro",
         "messages": [
@@ -232,58 +262,28 @@ async def get_country_news(country: str, time_filter: str = "24h", topic: str = 
     }
 
     async with httpx.AsyncClient() as client:
-        ai_content = ""
         try:
             response = await client.post(PERPLEXITY_URL, json=payload, headers=headers, timeout=30.0)
             response.raise_for_status()
             data = response.json()
-            # Fetch stats if not already done
             stats = await stats_task
-
             ai_content = data["choices"][0]["message"]["content"]
-
-            # Try to parse the clean JSON
-            try:
-                clean_content = ai_content.replace("```json", "").replace("```", "").strip()
-                json_data = json.loads(clean_content)
-                news_list = json_data.get("news", [])
-                trends = json_data.get("trends", [])
-            except Exception as parse_err:
-                # Provide a more user-friendly message if the model refused or returned text
-                print(f"JSON Parse error: {parse_err}. Content snippet: {ai_content[:100]}...")
-                if len(ai_content) > 10 and not ai_content.strip().startswith("{"):
-                     # This is likely a text refusal from the LLM
-                     raise HTTPException(status_code=404, detail="Signal non détecté : L'IA n'a pas trouvé d'informations fiables pour ces critères.")
-                raise HTTPException(status_code=500, detail="Erreur de décryptage du signal (format invalide).")
-
-
-            # 5. Update Quota & Cache
-            new_count = update_quota()
-            combined_data = {"news": news_list, "trends": trends, "stats": stats}
-            set_cached_news(cache_key, combined_data)
+            
+            clean_content = ai_content.replace("```json", "").replace("```", "").strip()
+            json_data = json.loads(clean_content)
+            news_list = json_data.get("news", [])
+            
+            db_user = db_service.get_or_create_user(email)
+            new_count = db_service.increment_quota(db_user.id, today)
             
             return {
-                "country": country, 
-                "time_filter": time_filter,
-                "topic": topic,
-                "news": news_list, 
-                "trends": trends,
-                "stats": stats,
-                "from_cache": False, 
-                "quota": new_count
+                "country": country, "time_filter": time_filter, "topic": topic,
+                "news": news_list, "trends": json_data.get("trends", []), "stats": stats,
+                "from_cache": False, "quota": new_count
             }
-            
-        except HTTPException as he:
-            # Ensure stats_task is cleaned up even on HTTP errors
-            try: await stats_task
-            except Exception: pass
-            raise he
         except Exception as e:
-            # Ensure stats_task is cleaned up even on general errors
-            try: await stats_task
-            except Exception: pass
-            print(f"API Error: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"Interruption du signal : {str(e)}")
+            logger.error(f"API Error: {str(e)}")
+            raise HTTPException(status_code=500, detail="Erreur de service news.")
 
 if __name__ == "__main__":
     import uvicorn
