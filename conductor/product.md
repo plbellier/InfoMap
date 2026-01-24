@@ -13,6 +13,8 @@ I want to create an webapp hosted on my personnal server. This webapp will be ca
 - **Interactive Map:** A 2D or 3D world map where users can click on specific countries.
 - **Perplexity API Integration:** Fetching and summarizing the latest headlines using the Perplexity API for the selected country.
 - **Information Modal:** A clean interface to display news summaries and headlines when a country is clicked.
+- **Secure Access:** Google OAuth2 authentication required to access the application.
+- **Usage Control:** Per-user daily quotas for API calls, manageable via an administrator dashboard.
 
 ## Target Audience
 - Students or educators looking for an interactive world news tool.

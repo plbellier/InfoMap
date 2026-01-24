@@ -7,6 +7,9 @@
 
 ## Backend
 - **Framework:** Python (FastAPI)
+- **Authentication:** Google OAuth2 via Authlib
+- **Database:** SQLite with SQLModel (SQLAlchemy) for user management and quotas
+- **Session Management:** Encrypted cookie-based sessions
 - **API Integration:** Perplexity API (for fetching and summarizing global news)
 - **Data Handling:** GeoJSON (for country boundaries and map interaction)
 
