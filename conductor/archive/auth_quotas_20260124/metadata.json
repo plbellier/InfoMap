@@ -1,0 +1,8 @@
+{
+  "track_id": "auth_quotas_20260124",
+  "type": "feature",
+  "status": "new",
+  "created_at": "2026-01-24T12:00:00Z",
+  "updated_at": "2026-01-24T12:00:00Z",
+  "description": "Google OAuth2 Authentication, SQLite-based quotas, and Admin management interface."
+}
