@@ -8,15 +8,21 @@ services:
       - /app/__pycache__
     environment:
       - PERPLEXITY_API_KEY=${PERPLEXITY_API_KEY}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - SESSION_SECRET_KEY=${SESSION_SECRET_KEY}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://100.79.156.30.sslip.io:5173}
+      - FRONTEND_URL=${FRONTEND_URL:-http://100.79.156.30.sslip.io:5173}
+      - DATABASE_URL=sqlite:////app/infomap.db
     restart: unless-stopped
 
   frontend:
     build: ./frontend
     ports:
       - "5173:5173"
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
+    # volumes:
+    #   - ./frontend:/app
+    #   - /app/node_modules
     depends_on:
       - backend
     restart: unless-stopped

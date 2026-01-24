@@ -1,5 +1,8 @@
-node_modules
-dist
-.git
+node_modules/
+dist/
 .env
-package-lock.json
+.git/
+.vscode/
+README.md
+Dockerfile
+.dockerignore
