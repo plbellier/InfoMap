@@ -7,8 +7,10 @@ services:
       - "8000:8000"
     volumes:
       - ./backend:/app
+      - /app/__pycache__
     environment:
       - PERPLEXITY_API_KEY=${PERPLEXITY_API_KEY}
+    restart: unless-stopped
 
   frontend:
     build: ./frontend
@@ -16,7 +18,9 @@ services:
       - "5173:5173"
     volumes:
       - ./frontend:/app
+      - /app/node_modules
     environment:
-      - VITE_API_URL=http://localhost:8000
+      - VITE_API_URL=http://backend:8000
     depends_on:
       - backend
+    restart: unless-stopped
