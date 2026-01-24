@@ -1,15 +1,6 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import * as THREE from 'three'
 import './index.css'
-
-// --- COMPATIBILITY POLYFILL ---
-// Some legacy libraries (like older globe sub-deps) look for THREE.VertexColors
-// which was removed in recent Three.js versions. We restore it here.
-if (!(THREE as any).VertexColors) {
-  (THREE as any).VertexColors = 2; // Constant value for VertexColors in older versions
-}
-// ------------------------------
 
 console.log("MATRIX MAIN SCRIPT: Eval Start");
 
