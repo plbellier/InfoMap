@@ -7,13 +7,26 @@ export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
+    {
+      name: 'fix-three-exports',
+      resolveId(id) {
+        if (id === 'three/webgpu') {
+          return 'three/build/three.webgpu.js';
+        }
+        if (id === 'three/tsl') {
+          return 'three/build/three.tsl.js';
+        }
+      }
+    }
   ],
   server: {
     host: true,
     port: 5173,
     watch: {
-      // Vital for Docker on unstable file systems
       usePolling: true,
     },
   },
+  optimizeDeps: {
+    exclude: ['three']
+  }
 })

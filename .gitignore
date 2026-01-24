@@ -43,6 +43,9 @@ yarn-error.log*
 *.swo
 
 # Project specific
+backend/cache.json
+backend/quota.json
+frontend/package-lock.json
 __pycache__/
 *.pyc
 *.pyo

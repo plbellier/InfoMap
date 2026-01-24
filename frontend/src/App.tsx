@@ -48,29 +48,58 @@ function App() {
   });
   const [searchQuery, setSearchQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [webglSupported, setWebglSupported] = useState<boolean | null>(null);
   const [dimensions, setDimensions] = useState({
     width: window.innerWidth,
     height: window.innerHeight
   });
 
+  // Check WebGL support
+  useEffect(() => {
+    try {
+      const canvas = document.createElement('canvas');
+      const support = !!(window.WebGLRenderingContext && (canvas.getContext('webgl') || canvas.getContext('experimental-webgl')));
+      setWebglSupported(support);
+      if (!support) {
+        setError("WebGL is not supported or enabled in your browser. The 3D globe cannot be rendered.");
+      }
+    } catch (e) {
+      setWebglSupported(false);
+      setError("Error checking WebGL support.");
+    }
+  }, []);
+
   useEffect(() => {
     // Use dynamic API URL based on current host
-    const apiBase = window.location.hostname === 'localhost' ? 'http://localhost:8000' : `http://${window.location.hostname}:8000`;
+    const defaultApi = window.location.hostname === 'localhost' ? 'http://localhost:8000' : `http://${window.location.hostname}:8000`;
+    const apiBase = import.meta.env.VITE_API_URL || defaultApi;
 
     // 1. Initial Load of Quota
     fetch(`${apiBase}/quota`)
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error(`Backend unreachable (Status: ${res.status})`);
+        return res.json();
+      })
       .then(data => setApiUsage(data.count))
-      .catch(err => console.error("Could not fetch quota:", err));
+      .catch(err => {
+        console.error("Could not fetch quota:", err);
+        setError(`Backend Connection Error: Make sure port 8000 is open on ${window.location.hostname}`);
+      });
 
     // 2. Load GeoJSON
     fetch('https://raw.githubusercontent.com/vasturiano/react-globe.gl/master/example/datasets/ne_110m_admin_0_countries.geojson')
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error("Failed to load country map data");
+        return res.json();
+      })
       .then(data => {
         console.log("GeoJSON loaded:", data.features.length, "features");
         setGeoData(data);
       })
-      .catch(err => console.error("Error loading GeoJSON:", err));
+      .catch(err => {
+        console.error("Error loading GeoJSON:", err);
+        setError("Map Data Error: Could not load country boundaries from GitHub.");
+      });
 
     // 3. Handle Resize
     const handleResize = () => {
@@ -78,14 +107,19 @@ function App() {
     };
     window.addEventListener('resize', handleResize);
 
-    // 4. Auto-rotate
-    if (globeEl.current) {
-      globeEl.current.controls().autoRotate = true;
-      globeEl.current.controls().autoRotateSpeed = 0.3;
-    }
-
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Handle Auto-rotate when globe is ready
+  useEffect(() => {
+    if (globeEl.current && webglSupported) {
+      const controls = globeEl.current.controls();
+      if (controls) {
+        controls.autoRotate = true;
+        controls.autoRotateSpeed = 0.3;
+      }
+    }
+  }, [webglSupported]);
 
   // 5. Cleanup expired history on mount
   useEffect(() => {
@@ -129,7 +163,8 @@ function App() {
     setError(null);
 
     try {
-      const apiBase = window.location.hostname === 'localhost' ? 'http://localhost:8000' : `http://${window.location.hostname}:8000`;
+      const defaultApi = window.location.hostname === 'localhost' ? 'http://localhost:8000' : `http://${window.location.hostname}:8000`;
+    const apiBase = import.meta.env.VITE_API_URL || defaultApi;
       const url = `${apiBase}/news/${encodeURIComponent(country)}?time_filter=${filter}&topic=${currentTopic}`;
       const response = await fetch(url);
       const data = await response.json();
@@ -186,38 +221,62 @@ function App() {
 
   return (
     <div className="fixed inset-0 bg-[#000] overflow-hidden font-sans select-none">
+      {/* Critical Error Overlay */}
+      {error && !geoData && (
+        <div className="absolute inset-0 z-[2000] flex items-center justify-center bg-black/90 backdrop-blur-sm p-6">
+          <div className="max-w-md w-full bg-[#0d1117] border border-red-500/50 rounded-3xl p-8 text-center shadow-[0_0_50px_rgba(239,68,68,0.2)]">
+            <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4M12 17h.01" /></svg>
+            </div>
+            <h2 className="text-xl font-black text-white uppercase tracking-tighter mb-2">System Failure</h2>
+            <p className="text-red-400 text-sm font-bold mb-6">{error}</p>
+            <div className="space-y-3">
+              <button 
+                onClick={() => window.location.reload()}
+                className="w-full py-3 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-xl font-black uppercase text-[10px] tracking-widest transition-all"
+              >
+                Re-initialize Matrix
+              </button>
+              <p className="text-gray-600 text-[10px] font-bold">Verify that port 8000 is open and WebGL is enabled.</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Container for Globe to ensure it doesn't push elements */}
       <div className="absolute inset-0 z-0">
-        <Globe
-          ref={globeEl}
-          width={dimensions.width}
-          height={dimensions.height}
-          globeImageUrl="//unpkg.com/three-globe/example/img/earth-dark.jpg"
-          bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
-          backgroundImageUrl="//unpkg.com/three-globe/example/img/night-sky.png"
-          polygonsData={polygons}
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          polygonCapColor={(d: any) => {
-            const countryName = d.properties.NAME || d.properties.name || d.properties.ADMIN;
-            const isInHistory = history.some(h => h.country === countryName);
-            return isInHistory ? 'rgba(249, 115, 22, 0.4)' : 'rgba(29, 78, 216, 0.2)';
-          }}
-          polygonSideColor={() => 'rgba(0, 0, 0, 0.6)'}
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          polygonStrokeColor={(d: any) => {
-            const countryName = d.properties.NAME || d.properties.name || d.properties.ADMIN;
-            const isInHistory = history.some(h => h.country === countryName);
-            return isInHistory ? '#fb923c' : '#3b82f6';
-          }}
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          polygonLabel={({ properties: d }: any) => `
-            <div style="background: rgba(13, 17, 23, 0.95); color: white; border: 1px solid #30363d; padding: 6px 12px; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); pointer-events: none;">
-              <b style="font-size: 14px;">${d.NAME || d.name || d.ADMIN}</b>
-            </div>
-          `}
-          onPolygonClick={onPolygonClick}
-          polygonAltitude={0.01}
-        />
+        {webglSupported && (
+          <Globe
+            ref={globeEl}
+            width={dimensions.width}
+            height={dimensions.height}
+            globeImageUrl="//unpkg.com/three-globe/example/img/earth-dark.jpg"
+            bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
+            backgroundImageUrl="//unpkg.com/three-globe/example/img/night-sky.png"
+            polygonsData={polygons}
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            polygonCapColor={(d: any) => {
+              const countryName = d.properties.NAME || d.properties.name || d.properties.ADMIN;
+              const isInHistory = history.some(h => h.country === countryName);
+              return isInHistory ? 'rgba(249, 115, 22, 0.4)' : 'rgba(29, 78, 216, 0.2)';
+            }}
+            polygonSideColor={() => 'rgba(0, 0, 0, 0.6)'}
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            polygonStrokeColor={(d: any) => {
+              const countryName = d.properties.NAME || d.properties.name || d.properties.ADMIN;
+              const isInHistory = history.some(h => h.country === countryName);
+              return isInHistory ? '#fb923c' : '#3b82f6';
+            }}
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            polygonLabel={({ properties: d }: any) => `
+              <div style="background: rgba(13, 17, 23, 0.95); color: white; border: 1px solid #30363d; padding: 6px 12px; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); pointer-events: none;">
+                <b style="font-size: 14px;">${d.NAME || d.name || d.ADMIN}</b>
+              </div>
+            `}
+            onPolygonClick={onPolygonClick}
+            polygonAltitude={0.01}
+          />
+        )}
       </div>
 
       {/* --- OVERLAYS --- */}
