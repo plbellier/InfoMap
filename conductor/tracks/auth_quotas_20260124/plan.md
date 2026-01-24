@@ -36,11 +36,11 @@
     - [x] Implement: Update `App.tsx` for session management and login display.
 - [x] Task: Conductor - User Manual Verification 'Phase 4: Frontend Integration & Login UI' (Protocol in workflow.md)
 
-## Phase 5: Admin Management Interface
-- [ ] Task: Implement Admin API Endpoints.
-    - [ ] Write Tests: Verify that only `pl.bellier@gmail.com` can access `/admin/users`.
-    - [ ] Implement: Add endpoints to list users and update their `max_daily_quota`.
-- [ ] Task: Create Admin Dashboard Component.
-    - [ ] Write Tests: Test UI display for user management.
-    - [ ] Implement: `frontend/src/components/AdminPanel.tsx` with user list and editable quotas.
-- [ ] Task: Conductor - User Manual Verification 'Phase 5: Admin Management Interface' (Protocol in workflow.md)
+## Phase 5: Admin Management Interface [checkpoint: 3613269]
+- [x] Task: Implement Admin API Endpoints. 3613269
+    - [x] Write Tests: Verify that only `pl.bellier@gmail.com` can access `/admin/users`.
+    - [x] Implement: Add endpoints to list users and update their `max_daily_quota`.
+- [x] Task: Create Admin Dashboard Component. 3613269
+    - [x] Write Tests: Test UI display for user management.
+    - [x] Implement: `frontend/src/components/AdminPanel.tsx` with user list and editable quotas.
+- [x] Task: Conductor - User Manual Verification 'Phase 5: Admin Management Interface' (Protocol in workflow.md)
