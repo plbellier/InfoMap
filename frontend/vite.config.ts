@@ -22,7 +22,7 @@ export default defineConfig({
   server: {
     host: true,
     port: 5173,
-    allowedHosts: ["100.79.156.30.sslip.io"],
+    allowedHosts: true,
     watch: {
       usePolling: true,
     },

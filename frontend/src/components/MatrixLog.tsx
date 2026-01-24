@@ -45,7 +45,7 @@ export const MatrixLog: React.FC<MatrixLogProps> = ({
   onRestore
 }) => {
   return (
-    <div className="absolute left-6 bottom-6 w-96 h-48 z-[1000] bg-[#0d1117]/60 backdrop-blur-md border border-[#30363d] rounded-3xl flex flex-col overflow-hidden pointer-events-auto shadow-xl">
+    <div className="absolute left-4 bottom-20 right-4 sm:right-auto sm:left-6 sm:bottom-6 sm:w-96 h-64 sm:h-48 z-[1000] bg-[#0d1117]/95 sm:bg-[#0d1117]/60 backdrop-blur-md border border-[#30363d] rounded-3xl flex flex-col overflow-hidden pointer-events-auto shadow-2xl animate-in slide-in-from-bottom-4">
       <div className="px-5 py-3 border-b border-[#30363d]/50 flex flex-col gap-2 bg-white/[0.02]">
         <div className="flex items-center justify-between">
           <span className="text-[9px] font-black text-gray-500 uppercase tracking-[0.2em]">Matrix Log</span>

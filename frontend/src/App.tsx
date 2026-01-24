@@ -65,6 +65,11 @@ function App() {
     height: window.innerHeight
   });
 
+  // Mobile Menu States
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileLogOpen, setMobileLogOpen] = useState(false);
+  const [mobileFeedOpen, setMobileFeedOpen] = useState(false);
+
   // Check WebGL support
   useEffect(() => {
     try {
@@ -273,6 +278,76 @@ function App() {
       <Header />
       <ApiUsageHUD apiUsage={apiUsage} maxQuota={maxQuota} />
 
+      {/* Mobile Toggle Buttons */}
+      <div className="sm:hidden fixed inset-0 pointer-events-none z-[1500]">
+        {/* Top Left: Menu/Settings */}
+        {!selectedCountry && (
+          <button 
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="absolute top-4 left-4 pointer-events-auto p-3 bg-[#0d1117]/80 backdrop-blur-md border border-blue-500/30 rounded-2xl text-blue-400 shadow-lg"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              {mobileMenuOpen ? <path d="M18 6L6 18M6 6l12 12" /> : <path d="M3 12h18M3 6h18M3 18h18" />}
+            </svg>
+          </button>
+        )}
+
+        {/* Bottom Left: Matrix Log */}
+        {!selectedCountry && !mobileMenuOpen && (
+          <button 
+            onClick={() => { setMobileLogOpen(!mobileLogOpen); setMobileFeedOpen(false); }}
+            className={`absolute bottom-4 left-4 pointer-events-auto p-3 backdrop-blur-md border rounded-2xl shadow-lg transition-all ${mobileLogOpen ? 'bg-orange-600 border-orange-400 text-white' : 'bg-[#0d1117]/80 border-gray-700 text-gray-400'}`}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 20h9M3 20h.01M3 16h.01M3 12h.01M3 8h.01M3 4h.01M7 4h14M7 8h14M7 12h14M7 16h14" /></svg>
+          </button>
+        )}
+
+        {/* Bottom Right: Tactical Feed */}
+        {!selectedCountry && !mobileMenuOpen && (
+          <button 
+            onClick={() => { setMobileFeedOpen(!mobileFeedOpen); setMobileLogOpen(false); }}
+            className={`absolute bottom-4 right-4 pointer-events-auto p-3 backdrop-blur-md border rounded-2xl shadow-lg transition-all ${mobileFeedOpen ? 'bg-blue-600 border-blue-400 text-white' : 'bg-[#0d1117]/80 border-gray-700 text-gray-400'}`}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 12h-4l-3 9L9 3l-3 9H2" /></svg>
+          </button>
+        )}
+      </div>
+
+      {/* Mobile Menu Overlay */}
+      {mobileMenuOpen && !selectedCountry && (
+        <div className="sm:hidden fixed inset-0 z-[1400] bg-black/60 backdrop-blur-md flex flex-col items-center justify-center p-6 animate-in fade-in">
+          <div className="w-full max-w-xs bg-[#0d1117] border border-blue-500/20 rounded-3xl p-6 space-y-4 shadow-2xl">
+            <h3 className="text-blue-400 text-[10px] font-black uppercase tracking-[0.3em] text-center mb-4">Systems Access</h3>
+            {is_admin && (
+              <button 
+                className="w-full p-4 bg-blue-500/10 border border-blue-500/20 rounded-2xl text-blue-400 font-bold flex items-center justify-center gap-3"
+                onClick={() => { setShowAdmin(true); setMobileMenuOpen(false); }}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 01-2.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z" /></svg>
+                ADMIN PANEL
+              </button>
+            )}
+            <button 
+              className="w-full p-4 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-400 font-bold flex items-center justify-center gap-3"
+              onClick={() => {
+                const defaultApi = window.location.hostname === 'localhost' ? 'http://localhost:8000' : `http://${window.location.hostname}:8000`;
+                const apiBase = import.meta.env.VITE_API_URL || defaultApi;
+                window.location.href = `${apiBase}/logout`;
+              }}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+              TERMINATE
+            </button>
+            <button 
+              className="w-full p-2 text-gray-500 text-[10px] font-black uppercase mt-4"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
       {selectedCountry && (
         <NewsSidebar 
           selectedCountry={selectedCountry}
@@ -287,38 +362,42 @@ function App() {
         />
       )}
 
-      <MatrixLog 
-        history={history}
-        setHistory={setHistory}
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
-        selectedCountry={selectedCountry}
-        timeFilter={timeFilter}
-        topic={topic}
-        onRestore={handleRestoreFromHistory}
-      />
+      <div className={`${mobileLogOpen ? 'flex' : 'hidden sm:flex'}`}>
+        <MatrixLog 
+          history={history}
+          setHistory={setHistory}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          selectedCountry={selectedCountry}
+          timeFilter={timeFilter}
+          topic={topic}
+          onRestore={(h) => { handleRestoreFromHistory(h); setMobileLogOpen(false); }}
+        />
+      </div>
 
-      <ControlPanel 
-        timeFilter={timeFilter}
-        setTimeFilter={setTimeFilter}
-        topic={topic}
-        setTopic={setTopic}
-      />
+      <div className={`${mobileFeedOpen ? 'block' : 'hidden sm:block'}`}>
+        <ControlPanel 
+          timeFilter={timeFilter}
+          setTimeFilter={setTimeFilter}
+          topic={topic}
+          setTopic={setTopic}
+        />
+      </div>
 
       {authenticated && !selectedCountry && (
-        <div className="absolute top-6 left-6 z-[1000] pointer-events-auto flex items-center gap-3 animate-in fade-in slide-in-from-left-4 duration-500">
+        <div className="hidden sm:flex absolute top-4 left-4 sm:top-6 sm:left-6 z-[1000] pointer-events-auto items-center gap-2 sm:gap-3 animate-in fade-in slide-in-from-left-4 duration-500">
           {is_admin && (
             <button 
-              className="p-3 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 rounded-2xl text-blue-400 transition-all flex items-center gap-2 group"
+              className="p-2 sm:p-3 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 rounded-xl sm:rounded-2xl text-blue-400 transition-all flex items-center gap-2 group"
               onClick={() => setShowAdmin(true)}
               title="Matrix Control"
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 01-2.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z" /></svg>
-              <span className="text-[10px] font-black uppercase tracking-widest hidden group-hover:inline">Admin Access</span>
+              <svg width="18" height="18" className="sm:w-5 sm:h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 01-2.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z" /></svg>
+              <span className="text-[10px] font-black uppercase tracking-widest hidden md:inline">Admin Access</span>
             </button>
           )}
           <button 
-            className="p-3 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded-2xl text-red-400 transition-all flex items-center gap-2 group"
+            className="p-2 sm:p-3 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded-xl sm:rounded-2xl text-red-400 transition-all flex items-center gap-2 group"
             onClick={() => {
               const defaultApi = window.location.hostname === 'localhost' ? 'http://localhost:8000' : `http://${window.location.hostname}:8000`;
               const apiBase = import.meta.env.VITE_API_URL || defaultApi;
@@ -326,8 +405,8 @@ function App() {
             }}
             title="Terminate Session"
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
-            <span className="text-[10px] font-black uppercase tracking-widest hidden group-hover:inline">Logout</span>
+            <svg width="18" height="18" className="sm:w-5 sm:h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+            <span className="text-[10px] font-black uppercase tracking-widest hidden md:inline">Logout</span>
           </button>
         </div>
       )}

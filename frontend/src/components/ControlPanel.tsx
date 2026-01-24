@@ -22,11 +22,11 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
   setTopic 
 }) => {
   return (
-    <div className="absolute bottom-6 right-6 z-[1000] pointer-events-auto flex flex-col items-end gap-3 w-72">
-      <div className="w-full bg-[#0d1117]/80 backdrop-blur-xl border border-[#30363d] p-1.5 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] flex flex-col">
+    <div className="absolute bottom-20 left-4 right-4 sm:left-auto sm:translate-x-0 sm:right-6 sm:bottom-6 z-[1000] pointer-events-auto flex flex-col items-center sm:items-end gap-3 sm:w-72 animate-in slide-in-from-bottom-4">
+      <div className="w-full bg-[#0d1117]/80 backdrop-blur-xl border border-[#30363d] p-1 sm:p-1.5 rounded-2xl sm:rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] flex flex-col">
         {/* Header */}
-        <div className="px-4 py-2 border-b border-[#30363d]/50 flex items-center justify-between mb-2">
-          <span className="text-[8px] font-black text-gray-500 uppercase tracking-[0.2em]">Tactical Feed</span>
+        <div className="px-3 py-1 sm:px-4 sm:py-2 border-b border-[#30363d]/50 flex items-center justify-between mb-1 sm:mb-2">
+          <span className="text-[7px] sm:text-[8px] font-black text-gray-500 uppercase tracking-[0.1em] sm:tracking-[0.2em]">Tactical Feed</span>
           <div className="flex gap-2">
             {[
               { id: '24h', label: '24H' },

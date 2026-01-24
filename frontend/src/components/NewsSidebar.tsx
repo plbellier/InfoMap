@@ -36,9 +36,9 @@ export const NewsSidebar: React.FC<NewsSidebarProps> = ({
   onRefresh
 }) => {
   return (
-    <div className="absolute left-6 top-6 bottom-[15.5rem] w-96 z-[1000] flex flex-col pointer-events-none">
-      <div className="h-full bg-[#0d1117]/90 backdrop-blur-2xl border border-blue-500/20 rounded-3xl flex flex-col shadow-2xl overflow-hidden animate-in pointer-events-auto">
-        <div className="p-6 border-b border-[#30363d] flex justify-between items-start bg-blue-500/5">
+    <div className="absolute inset-0 sm:left-6 sm:top-6 sm:bottom-[15.5rem] sm:w-96 z-[2000] flex flex-col pointer-events-none sm:p-0">
+      <div className="h-full w-full bg-[#0d1117] sm:bg-[#0d1117]/90 backdrop-blur-2xl sm:border sm:border-blue-500/20 sm:rounded-3xl flex flex-col shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom sm:slide-in-from-left-4 duration-300 pointer-events-auto">
+        <div className="p-5 sm:p-6 border-b border-[#30363d] flex justify-between items-start bg-blue-500/5">
           <div className="flex-1 mr-4">
             <div className="flex items-center gap-2 mb-1">
               <span className="text-2xl">{countryStats?.flag_emoji}</span>
