@@ -88,7 +88,7 @@ function App() {
   useEffect(() => {
     if (!authenticated) return;
 
-    const defaultApi = window.location.hostname === 'localhost' ? 'http://localhost:8000' : `http://${window.location.hostname}:8000`;
+    const defaultApi = window.location.hostname === 'localhost' ? 'http://localhost:8000' : (window.location.hostname === 'infomap.ovh' ? '/api' : `http://${window.location.hostname}:8000`);
     const apiBase = import.meta.env.VITE_API_URL || defaultApi;
 
     fetch(`${apiBase}/quota`, { credentials: 'include' })
@@ -174,7 +174,7 @@ function App() {
     setError(null);
 
     try {
-      const defaultApi = window.location.hostname === 'localhost' ? 'http://localhost:8000' : `http://${window.location.hostname}:8000`;
+      const defaultApi = window.location.hostname === 'localhost' ? 'http://localhost:8000' : (window.location.hostname === 'infomap.ovh' ? '/api' : `http://${window.location.hostname}:8000`);
       const apiBase = import.meta.env.VITE_API_URL || defaultApi;
       const url = `${apiBase}/news/${encodeURIComponent(country)}?time_filter=${filter}&topic=${currentTopic}`;
       const response = await fetch(url, { credentials: 'include' });
@@ -330,9 +330,8 @@ function App() {
             <button 
               className="w-full p-4 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-400 font-bold flex items-center justify-center gap-3"
               onClick={() => {
-                const defaultApi = window.location.hostname === 'localhost' ? 'http://localhost:8000' : `http://${window.location.hostname}:8000`;
-                const apiBase = import.meta.env.VITE_API_URL || defaultApi;
-                window.location.href = `${apiBase}/logout`;
+                    const defaultApi = window.location.hostname === 'localhost' ? 'http://localhost:8000' : (window.location.hostname === 'infomap.ovh' ? '/api' : `http://${window.location.hostname}:8000`);
+                    const apiBase = import.meta.env.VITE_API_URL || defaultApi;                window.location.href = `${apiBase}/logout`;
               }}
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
@@ -399,7 +398,7 @@ function App() {
           <button 
             className="p-2 sm:p-3 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 rounded-xl sm:rounded-2xl text-red-400 transition-all flex items-center gap-2 group"
             onClick={() => {
-              const defaultApi = window.location.hostname === 'localhost' ? 'http://localhost:8000' : `http://${window.location.hostname}:8000`;
+              const defaultApi = window.location.hostname === 'localhost' ? 'http://localhost:8000' : (window.location.hostname === 'infomap.ovh' ? '/api' : `http://${window.location.hostname}:8000`);
               const apiBase = import.meta.env.VITE_API_URL || defaultApi;
               window.location.href = `${apiBase}/logout`;
             }}

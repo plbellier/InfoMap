@@ -20,7 +20,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
 
   const fetchUsers = async () => {
     try {
-      const defaultApi = window.location.hostname === 'localhost' ? 'http://localhost:8000' : `http://${window.location.hostname}:8000`;
+      const defaultApi = window.location.hostname === 'localhost' ? 'http://localhost:8000' : (window.location.hostname === 'infomap.ovh' ? '/api' : `http://${window.location.hostname}:8000`);
       const apiBase = import.meta.env.VITE_API_URL || defaultApi;
       const response = await fetch(`${apiBase}/admin/users`, { credentials: 'include' });
       if (!response.ok) throw new Error("Failed to fetch users");
@@ -40,7 +40,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
 
   const updateQuota = async (email: string, newQuota: number) => {
     try {
-      const defaultApi = window.location.hostname === 'localhost' ? 'http://localhost:8000' : `http://${window.location.hostname}:8000`;
+      const defaultApi = window.location.hostname === 'localhost' ? 'http://localhost:8000' : (window.location.hostname === 'infomap.ovh' ? '/api' : `http://${window.location.hostname}:8000`);
       const apiBase = import.meta.env.VITE_API_URL || defaultApi;
       const response = await fetch(`${apiBase}/admin/quota`, {
         method: 'POST',
@@ -61,7 +61,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
 
   const toggleStatus = async (email: string, currentStatus: boolean) => {
     try {
-      const defaultApi = window.location.hostname === 'localhost' ? 'http://localhost:8000' : `http://${window.location.hostname}:8000`;
+      const defaultApi = window.location.hostname === 'localhost' ? 'http://localhost:8000' : (window.location.hostname === 'infomap.ovh' ? '/api' : `http://${window.location.hostname}:8000`);
       const apiBase = import.meta.env.VITE_API_URL || defaultApi;
       const response = await fetch(`${apiBase}/admin/user/status`, {
         method: 'PATCH',
@@ -85,7 +85,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
   const deleteUser = async (email: string) => {
     if (!window.confirm(`Permanently remove ${email} from matrix?`)) return;
     try {
-      const defaultApi = window.location.hostname === 'localhost' ? 'http://localhost:8000' : `http://${window.location.hostname}:8000`;
+      const defaultApi = window.location.hostname === 'localhost' ? 'http://localhost:8000' : (window.location.hostname === 'infomap.ovh' ? '/api' : `http://${window.location.hostname}:8000`);
       const apiBase = import.meta.env.VITE_API_URL || defaultApi;
       const response = await fetch(`${apiBase}/admin/user/${encodeURIComponent(email)}`, {
         method: 'DELETE',
@@ -108,7 +108,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
     e.preventDefault();
     if (!newEmail) return;
     try {
-      const defaultApi = window.location.hostname === 'localhost' ? 'http://localhost:8000' : `http://${window.location.hostname}:8000`;
+      const defaultApi = window.location.hostname === 'localhost' ? 'http://localhost:8000' : (window.location.hostname === 'infomap.ovh' ? '/api' : `http://${window.location.hostname}:8000`);
       const apiBase = import.meta.env.VITE_API_URL || defaultApi;
       const response = await fetch(`${apiBase}/admin/users`, {
         method: 'POST',
@@ -131,7 +131,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
   };
 
   const handleLogout = () => {
-    const defaultApi = window.location.hostname === 'localhost' ? 'http://localhost:8000' : `http://${window.location.hostname}:8000`;
+    const defaultApi = window.location.hostname === 'localhost' ? 'http://localhost:8000' : (window.location.hostname === 'infomap.ovh' ? '/api' : `http://${window.location.hostname}:8000`);
     const apiBase = import.meta.env.VITE_API_URL || defaultApi;
     window.location.href = `${apiBase}/logout`;
   };

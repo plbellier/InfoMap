@@ -13,6 +13,9 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 from starlette.middleware.sessions import SessionMiddleware
 from authlib.integrations.starlette_client import OAuth
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 from database import get_db_service
 from models import User, DailyQuota
@@ -35,7 +38,11 @@ GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
 SESSION_SECRET_KEY = os.getenv("SESSION_SECRET_KEY", "temporary-secret-key-change-it")
 DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{os.path.join(BASE_DIR, 'infomap.db')}")
 
+# Initialize Limiter
+limiter = Limiter(key_func=get_remote_address)
 app = FastAPI(title="InfoMap API Pro")
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Session Middleware
 app.add_middleware(
@@ -71,7 +78,7 @@ db_service = get_db_service(DATABASE_URL)
 
 PERPLEXITY_API_KEY = os.getenv("PERPLEXITY_API_KEY")
 PERPLEXITY_URL = "https://api.perplexity.ai/chat/completions"
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "https://infomap.ovh")
 
 # --- Dependencies ---
 
@@ -112,8 +119,14 @@ class UserCreate(BaseModel):
 
 @app.get("/login")
 async def login(request: Request):
-    redirect_uri = request.url_for('auth')
-    return await oauth.google.authorize_redirect(request, str(redirect_uri))
+    # En production, on force l'URL exacte attendue par Google
+    if request.base_url.hostname == "infomap.ovh":
+        redirect_uri = "https://infomap.ovh/api/auth"
+    else:
+        redirect_uri = str(request.url_for('auth'))
+    
+    logger.info(f"Redirecting to Google with URI: {redirect_uri}")
+    return await oauth.google.authorize_redirect(request, redirect_uri)
 
 @app.get("/auth")
 async def auth(request: Request):
@@ -276,7 +289,9 @@ async def get_country_stats(country):
     return None
 
 @app.get("/news/{country}")
+@limiter.limit("10/minute")
 async def get_country_news(
+    request: Request,
     country: str, 
     time_filter: str = "24h", 
     topic: str = "General",

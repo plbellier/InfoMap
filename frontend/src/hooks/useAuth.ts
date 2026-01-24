@@ -23,9 +23,8 @@ export const useAuth = () => {
 
   const checkAuth = useCallback(async () => {
     try {
-      const defaultApi = window.location.hostname === 'localhost' ? 'http://localhost:8000' : `http://${window.location.hostname}:8000`;
-      const apiBase = import.meta.env.VITE_API_URL || defaultApi;
-      const response = await fetch(`${apiBase}/me`, { credentials: 'include' });
+        const defaultApi = window.location.hostname === 'localhost' ? 'http://localhost:8000' : (window.location.hostname === 'infomap.ovh' ? '/api' : `http://${window.location.hostname}:8000`);
+        const apiBase = import.meta.env.VITE_API_URL || defaultApi;      const response = await fetch(`${apiBase}/me`, { credentials: 'include' });
       const data = await response.json();
       
       setAuth({
