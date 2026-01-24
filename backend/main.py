@@ -79,6 +79,12 @@ async def get_current_user(request: Request):
     user = request.session.get('user')
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    db_user = db_service.get_or_create_user(user['email'])
+    if not db_user.is_active:
+        request.session.pop('user', None)
+        raise HTTPException(status_code=403, detail="User not authorized")
+    
     return user
 
 async def get_admin_user(user: dict = Depends(get_current_user)):
@@ -92,6 +98,15 @@ async def get_admin_user(user: dict = Depends(get_current_user)):
 class QuotaUpdate(BaseModel):
     email: str
     max_daily_quota: int
+
+class UserStatusUpdate(BaseModel):
+    email: str
+    is_active: bool
+
+class UserCreate(BaseModel):
+    email: str
+    is_active: bool = True
+    max_daily_quota: int = 5
 
 # --- Auth Routes ---
 
@@ -110,12 +125,17 @@ async def auth(request: Request):
         
         if userinfo:
             email = userinfo.get("email")
+            db_user = db_service.get_or_create_user(email)
+            
+            if not db_user.is_active:
+                logger.warning(f"Unauthorized login attempt: {email}")
+                return RedirectResponse(url=f"{FRONTEND_URL}?error=unauthorized")
+
             request.session['user'] = {
                 "email": email,
                 "name": userinfo.get("name"),
                 "picture": userinfo.get("picture")
             }
-            db_service.get_or_create_user(email)
             logger.info(f"User logged in: {email}")
             
     except Exception as e:
@@ -165,6 +185,60 @@ async def update_user_quota(update: QuotaUpdate, admin: User = Depends(get_admin
         session.commit()
         logger.info(f"Admin {admin.email} updated quota for {update.email} to {update.max_daily_quota}")
         return {"status": "success", "email": update.email, "new_quota": user.max_daily_quota}
+
+@app.post("/admin/users")
+async def create_user(user_data: UserCreate, admin: User = Depends(get_admin_user)):
+    from sqlmodel import Session, select
+    with Session(db_service.engine) as session:
+        statement = select(User).where(User.email == user_data.email)
+        existing = session.exec(statement).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="User already exists")
+        
+        new_user = User(
+            email=user_data.email, 
+            is_active=user_data.is_active, 
+            max_daily_quota=user_data.max_daily_quota
+        )
+        session.add(new_user)
+        session.commit()
+        logger.info(f"Admin {admin.email} created user {user_data.email}")
+        return {"status": "success", "user": new_user}
+
+@app.patch("/admin/user/status")
+async def toggle_user_status(update: UserStatusUpdate, admin: User = Depends(get_admin_user)):
+    from sqlmodel import Session, select
+    with Session(db_service.engine) as session:
+        statement = select(User).where(User.email == update.email)
+        user = session.exec(statement).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        if user.email == admin.email:
+             raise HTTPException(status_code=400, detail="Cannot deactivate yourself")
+
+        user.is_active = update.is_active
+        session.add(user)
+        session.commit()
+        logger.info(f"Admin {admin.email} set status of {update.email} to {update.is_active}")
+        return {"status": "success", "email": update.email, "is_active": user.is_active}
+
+@app.delete("/admin/user/{email}")
+async def delete_user(email: str, admin: User = Depends(get_admin_user)):
+    from sqlmodel import Session, select
+    with Session(db_service.engine) as session:
+        statement = select(User).where(User.email == email)
+        user = session.exec(statement).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        if user.email == admin.email:
+             raise HTTPException(status_code=400, detail="Cannot delete yourself")
+
+        session.delete(user)
+        session.commit()
+        logger.info(f"Admin {admin.email} deleted user {email}")
+        return {"status": "success", "deleted": email}
 
 # --- News & Quota Routes ---
 

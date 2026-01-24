@@ -15,8 +15,9 @@ class DatabaseService:
             if not user:
                 # Default admin check
                 is_admin = (email == "pl.bellier@gmail.com")
-                max_quota = 9999 if is_admin else 5
-                user = User(email=email, is_admin=is_admin, max_daily_quota=max_quota)
+                is_active = is_admin # Only admin is active by default
+                max_quota = 15 if is_admin else 5
+                user = User(email=email, is_admin=is_admin, is_active=is_active, max_daily_quota=max_quota)
                 session.add(user)
                 session.commit()
                 session.refresh(user)
