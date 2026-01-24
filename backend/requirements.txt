@@ -4,3 +4,7 @@ httpx
 python-dotenv
 pydantic
 pytest
+sqlmodel
+authlib
+itsdangerous
+pytest-asyncio
