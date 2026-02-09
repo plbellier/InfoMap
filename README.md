@@ -1,97 +1,97 @@
 # 🌍 InfoMap
 
-> **Intelligence Matrix** — Un tableau de bord géopolitique interactif propulsé par l'IA, offrant des analyses d'actualités en temps réel par pays.
+> **Intelligence Matrix** — An interactive geopolitical dashboard powered by AI, providing real-time news analysis by country.
 
 ![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)
 ![React](https://img.shields.io/badge/React-18+-61DAFB.svg)
 ![Docker](https://img.shields.io/badge/Docker-ready-2496ED.svg)
 ![License](https://img.shields.io/badge/License-MIT-green.svg)
 
-## ✨ Fonctionnalités
+## ✨ Features
 
-- 🗺️ **Carte interactive du monde** — Sélectionnez un pays d'un simple clic
-- 🤖 **Résumés d'actualités par IA** — Propulsés par l'API Perplexity (Sonar Pro)
-- 🎯 **Filtres thématiques** — Général, Politique, Économie, Tech, Militaire/Géo
-- ⏱️ **Filtres temporels** — Dernières 24h ou 7 jours
-- 👮 **Panel d'administration** — Gestion des utilisateurs et des quotas d'API
-- 🔐 **Authentification Google OAuth 2.0** — Accès sécurisé
+- 🗺️ **Interactive World Map** — Select a country with a single click
+- 🤖 **AI-powered News Summaries** — Powered by Perplexity API (Sonar Pro)
+- 🎯 **Topic Filters** — General, Politics, Economy, Tech, Military/Geo
+- ⏱️ **Time Filters** — Last 24 hours or 7 days
+- 👮 **Admin Panel** — User management and API quota control
+- 🔐 **Google OAuth 2.0 Authentication** — Secure access
 
 ## 🏗️ Architecture
 
 ```
 InfoMap/
-├── backend/          # API FastAPI (Python 3.11+)
-│   ├── main.py       # Routes API, auth, middleware
-│   ├── database.py   # Service de base de données SQLite
-│   ├── models.py     # Modèles SQLModel (User, DailyQuota)
+├── backend/          # FastAPI API (Python 3.11+)
+│   ├── main.py       # API routes, auth, middleware
+│   ├── database.py   # SQLite database service
+│   ├── models.py     # SQLModel models (User, DailyQuota)
 │   └── Dockerfile
-├── frontend/         # Application React + Vite + TypeScript
+├── frontend/         # React + Vite + TypeScript app
 │   ├── src/
-│   │   ├── components/   # Composants UI (Globe, AdminPanel, HUD...)
+│   │   ├── components/   # UI components (Globe, AdminPanel, HUD...)
 │   │   └── App.tsx
-│   ├── nginx.conf    # Configuration de production
+│   ├── nginx.conf    # Production configuration
 │   └── Dockerfile
 ├── nginx/            # Reverse proxy configuration
-├── conductor/        # Documentation technique (privée)
+├── conductor/        # Technical documentation (private)
 └── docker-compose.yml
 ```
 
-## 🚀 Déploiement
+## 🚀 Deployment
 
-### Prérequis
+### Prerequisites
 - Docker & Docker Compose
-- Clés API : Google OAuth, Perplexity AI
-- (Optionnel) Cloudflare Tunnel pour le HTTPS
+- API Keys: Google OAuth, Perplexity AI
+- (Optional) Cloudflare Tunnel for HTTPS
 
 ### Installation
 
-1. **Cloner le dépôt**
+1. **Clone the repository**
    ```bash
-   git clone https://github.com/votre-user/InfoMap.git
+   git clone https://github.com/plbellier/InfoMap.git
    cd InfoMap
    ```
 
-2. **Configurer les variables d'environnement**
+2. **Configure environment variables**
    ```bash
    cp .env.example .env
-   # Éditez .env avec vos clés API
+   # Edit .env with your API keys
    ```
 
-3. **Lancer l'application**
+3. **Start the application**
    ```bash
    docker-compose up --build -d
    ```
 
-4. **Accéder à l'application**
-   - Local : `http://localhost` (via le conteneur Nginx)
-   - Production : L'URL de votre tunnel Cloudflare
+4. **Access the application**
+   - Local: `http://localhost` (via Nginx container)
+   - Production: Your Cloudflare tunnel URL
 
 ## ⚙️ Configuration
 
-| Variable | Description | Requis |
-|----------|-------------|--------|
-| `PERPLEXITY_API_KEY` | Clé API Perplexity | ✅ |
-| `GOOGLE_CLIENT_ID` | ID client OAuth Google | ✅ |
-| `GOOGLE_CLIENT_SECRET` | Secret client OAuth | ✅ |
-| `SESSION_SECRET_KEY` | Clé secrète pour les sessions | ✅ (production) |
-| `ADMIN_EMAIL` | Email de l'administrateur par défaut | ❌ |
-| `FRONTEND_URL` | URL du frontend pour les redirections | ❌ |
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `PERPLEXITY_API_KEY` | Perplexity API key | ✅ |
+| `GOOGLE_CLIENT_ID` | Google OAuth client ID | ✅ |
+| `GOOGLE_CLIENT_SECRET` | OAuth client secret | ✅ |
+| `SESSION_SECRET_KEY` | Session secret key | ✅ (production) |
+| `ADMIN_EMAIL` | Default administrator email | ❌ |
+| `FRONTEND_URL` | Frontend URL for redirects | ❌ |
 
-## 🔒 Sécurité
+## 🔒 Security
 
-Ce projet suit les meilleures pratiques de sécurité :
-- **Rate Limiting** : 10 requêtes/minute par utilisateur
-- **Authentification** : OAuth 2.0 via Google
-- **Sessions** : Sécurisées avec `SessionMiddleware` (clé secrète requise en production)
-- **CORS** : Configuration stricte
-- **En-têtes HTTP** : X-Frame-Options, X-XSS-Protection, X-Content-Type-Options
-- **Secrets** : Toutes les clés sensibles sont externalisées dans des variables d'environnement
+This project follows security best practices:
+- **Rate Limiting**: 10 requests/minute per user
+- **Authentication**: OAuth 2.0 via Google
+- **Sessions**: Secured with `SessionMiddleware` (secret key required in production)
+- **CORS**: Strict configuration
+- **HTTP Headers**: X-Frame-Options, X-XSS-Protection, X-Content-Type-Options
+- **Secrets**: All sensitive keys externalized in environment variables
 
-Pour plus de détails, consultez [SECURITY.md](SECURITY.md).
+For more details, see [SECURITY.md](SECURITY.md).
 
 ## 📜 License
 
-Ce projet est sous licence MIT. Voir le fichier [LICENSE](LICENSE) pour plus de détails.
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
 ---
 
