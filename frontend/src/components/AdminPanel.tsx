@@ -220,10 +220,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
                       />
                     </div>
 
-                    <div className="h-8 w-[1px] bg-white/5 hidden sm:block"></div>
+                    <div className="h-8 w-[1px] bg-white/5 hidden sm:block shrink-0"></div>
 
                     {/* Actions */}
-                    <div className="flex gap-2 w-24 justify-end">
+                    <div className="flex gap-2 ml-2 justify-end shrink-0">
                       <button
                         onClick={() => toggleStatus(u.email, u.is_active)}
                         className={`px-3 py-1.5 rounded-xl border transition-all flex items-center gap-2 ${u.is_active ? 'bg-green-500/10 border-green-500/20 text-green-500 hover:bg-green-500/20' : 'bg-red-500/10 border-red-500/20 text-red-500 hover:bg-red-500/20'}`}
