@@ -88,20 +88,25 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
     try {
       const defaultApi = window.location.hostname === 'localhost' ? 'http://localhost:8000' : (window.location.hostname === 'infomap.ovh' ? '/api' : `http://${window.location.hostname}:8000`);
       const apiBase = import.meta.env.VITE_API_URL || defaultApi;
-      const response = await fetch(`${apiBase}/admin/user/${encodeURIComponent(email)}`, {
+      const url = `${apiBase}/admin/user/${encodeURIComponent(email)}`;
+      console.log('[AdminPanel] DELETE request to:', url);
+      const response = await fetch(url, {
         method: 'DELETE',
         credentials: 'include'
       });
+      console.log('[AdminPanel] DELETE response status:', response.status);
       if (response.ok) {
         setMessage(`User ${email} removed`);
         fetchUsers();
         setTimeout(() => setMessage(null), 2000);
       } else {
         const data = await response.json();
+        console.error('[AdminPanel] DELETE failed:', data);
         setMessage(data.detail || "Deletion failed");
       }
     } catch (e) {
-      console.error(e);
+      console.error('[AdminPanel] DELETE error:', e);
+      setMessage("Network error - deletion failed");
     }
   };
 
@@ -184,12 +189,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
           ) : (
             <div className="space-y-3">
               {users.map(u => (
-                <div key={u.id} className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl hover:bg-white/[0.04] transition-all group grid grid-cols-1 sm:grid-cols-[1fr_auto_auto_auto] items-center gap-4">
-                  {/* User Identity Column */}
-                  <div className="flex flex-col min-w-0">
-                    <div className="flex items-center gap-2 pr-4">
+                <div key={u.id} className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl hover:bg-white/[0.04] transition-all group grid grid-cols-1 sm:grid-cols-[200px_auto_auto_auto] items-center gap-4">
+                  {/* User Identity Column - Fixed width */}
+                  <div className="flex flex-col min-w-0 w-[200px]">
+                    <div className="flex items-center gap-2">
                       <span className={`w-2 h-2 shrink-0 rounded-full ${u.is_active ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.3)]' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]'}`}></span>
-                      <span className={`text-sm font-bold truncate ${u.is_active ? 'text-white' : 'text-gray-500'}`} title={u.email}>{u.email}</span>
+                      <span className={`text-sm font-bold truncate max-w-[160px] ${u.is_active ? 'text-white' : 'text-gray-500'}`} title={u.email}>{u.email}</span>
                     </div>
                     {u.is_admin && <span className="text-[8px] text-orange-500 font-black uppercase mt-0.5 ml-4 tracking-wider">Matrix Architect</span>}
                   </div>

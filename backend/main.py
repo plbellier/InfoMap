@@ -26,7 +26,7 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
 from database import get_db_service
-from models import User, DailyQuota
+from models import User, DailyQuota, QueryHistory
 
 # Configure logging
 logging.basicConfig(
@@ -309,6 +309,60 @@ async def check_quota(user: dict = Depends(get_current_user)):
         "max": db_user.max_daily_quota
     }
 
+# --- History Routes ---
+
+@app.get("/history")
+async def get_history(user: dict = Depends(get_current_user)):
+    """Get user's query history (last 20 items, max 4h old)"""
+    from sqlmodel import Session, select
+    from datetime import timedelta
+    
+    db_user = db_service.get_or_create_user(user['email'])
+    cutoff = datetime.utcnow() - timedelta(hours=4)
+    
+    with Session(db_service.engine) as session:
+        statement = (
+            select(QueryHistory)
+            .where(QueryHistory.user_id == db_user.id)
+            .where(QueryHistory.created_at >= cutoff)
+            .order_by(QueryHistory.created_at.desc())
+            .limit(20)
+        )
+        history = session.exec(statement).all()
+        
+        return [
+            {
+                "id": h.id,
+                "country": h.country,
+                "time_filter": h.time_filter,
+                "topic": h.topic,
+                "news": json.loads(h.news_json),
+                "stats": json.loads(h.stats_json) if h.stats_json else None,
+                "timestamp": h.created_at.isoformat()
+            }
+            for h in history
+        ]
+
+@app.delete("/history/{history_id}")
+async def delete_history_item(history_id: int, user: dict = Depends(get_current_user)):
+    """Delete a specific history item"""
+    from sqlmodel import Session, select
+    
+    db_user = db_service.get_or_create_user(user['email'])
+    
+    with Session(db_service.engine) as session:
+        statement = select(QueryHistory).where(
+            QueryHistory.id == history_id,
+            QueryHistory.user_id == db_user.id
+        )
+        item = session.exec(statement).first()
+        if not item:
+            raise HTTPException(status_code=404, detail="History item not found")
+        
+        session.delete(item)
+        session.commit()
+        return {"status": "success", "deleted_id": history_id}
+
 @app.get("/health")
 async def health_check():
     return {"status": "ok", "timestamp": time.time()}
@@ -407,6 +461,21 @@ async def get_country_news(
         
         db_user = db_service.get_or_create_user(email)
         new_count = db_service.increment_quota(db_user.id, today)
+        
+        # Save to history
+        from sqlmodel import Session
+        with Session(db_service.engine) as session:
+            history_item = QueryHistory(
+                user_id=db_user.id,
+                country=country,
+                time_filter=time_filter,
+                topic=topic,
+                news_json=json.dumps(news_list),
+                stats_json=json.dumps(stats) if stats else None
+            )
+            session.add(history_item)
+            session.commit()
+            logger.info(f"History saved for {email}: {country}/{topic}")
         
         return {
             "country": country, "time_filter": time_filter, "topic": topic,
