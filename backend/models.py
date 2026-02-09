@@ -10,9 +10,15 @@ class User(SQLModel, table=True):
     max_daily_quota: int = Field(default=5)
     
     # Relationship to quotas
-    quotas: list["DailyQuota"] = Relationship(back_populates="user")
+    quotas: list["DailyQuota"] = Relationship(
+        back_populates="user",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"}
+    )
     # Relationship to history
-    history: list["QueryHistory"] = Relationship(back_populates="user")
+    history: list["QueryHistory"] = Relationship(
+        back_populates="user",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"}
+    )
 
 class DailyQuota(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
