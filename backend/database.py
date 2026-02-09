@@ -1,7 +1,15 @@
 from sqlmodel import Session, select, create_engine, SQLModel
 from models import User, DailyQuota
 from datetime import datetime
+from zoneinfo import ZoneInfo
 import os
+
+# Helper for Paris time in database service if needed (date is usually passed from main.py)
+def get_paris_today():
+    return datetime.now(ZoneInfo("Europe/Paris")).strftime('%Y-%m-%d')
+
+# Admin email from environment variable (security improvement)
+ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "pl.bellier@gmail.com")
 
 class DatabaseService:
     def __init__(self, engine):
@@ -13,9 +21,9 @@ class DatabaseService:
             user = session.exec(statement).first()
             
             if not user:
-                # Default admin check
-                is_admin = (email == "pl.bellier@gmail.com")
-                is_active = is_admin # Only admin is active by default
+                # Default admin check using environment variable
+                is_admin = (email == ADMIN_EMAIL)
+                is_active = is_admin  # Only admin is active by default
                 max_quota = 15 if is_admin else 5
                 user = User(email=email, is_admin=is_admin, is_active=is_active, max_daily_quota=max_quota)
                 session.add(user)

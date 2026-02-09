@@ -4,7 +4,15 @@ import json
 import time
 import logging
 from datetime import datetime
+from zoneinfo import ZoneInfo
 from typing import Optional, List
+
+# Helper for Paris time
+def get_paris_now():
+    return datetime.now(ZoneInfo("Europe/Paris"))
+
+def get_paris_today():
+    return get_paris_now().strftime('%Y-%m-%d')
 
 from fastapi import FastAPI, HTTPException, Request, Depends
 from fastapi.responses import RedirectResponse
@@ -35,8 +43,16 @@ load_dotenv(dotenv_path=env_path)
 # Auth Configuration
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
-SESSION_SECRET_KEY = os.getenv("SESSION_SECRET_KEY", "temporary-secret-key-change-it")
+SESSION_SECRET_KEY = os.getenv("SESSION_SECRET_KEY")
 DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{os.path.join(BASE_DIR, 'infomap.db')}")
+
+# Security: Ensure SESSION_SECRET_KEY is set in production
+if not SESSION_SECRET_KEY:
+    if os.getenv("ENVIRONMENT", "development") == "production":
+        raise ValueError("SESSION_SECRET_KEY must be set in production environment")
+    else:
+        SESSION_SECRET_KEY = "dev-only-insecure-key-do-not-use-in-production"
+        logger.warning("⚠️  Using insecure default SESSION_SECRET_KEY - NOT for production!")
 
 # Initialize Limiter
 limiter = Limiter(key_func=get_remote_address)
@@ -79,6 +95,22 @@ db_service = get_db_service(DATABASE_URL)
 PERPLEXITY_API_KEY = os.getenv("PERPLEXITY_API_KEY")
 PERPLEXITY_URL = "https://api.perplexity.ai/chat/completions"
 FRONTEND_URL = os.getenv("FRONTEND_URL", "https://infomap.ovh")
+
+# Global HTTPX AsyncClient for better connection pooling
+http_client: Optional[httpx.AsyncClient] = None
+
+@app.on_event("startup")
+async def startup_event():
+    global http_client
+    http_client = httpx.AsyncClient(timeout=30.0)
+    logger.info("Global HTTPX AsyncClient initialized")
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    global http_client
+    if http_client:
+        await http_client.aclose()
+        logger.info("Global HTTPX AsyncClient closed")
 
 # --- Dependencies ---
 
@@ -179,10 +211,20 @@ async def get_me(request: Request):
 @app.get("/admin/users")
 async def list_users(admin: User = Depends(get_admin_user)):
     from sqlmodel import Session, select
+    today = get_paris_today()
     with Session(db_service.engine) as session:
         statement = select(User)
         users = session.exec(statement).all()
-        return users
+        
+        # Enrich users with today's query count
+        enriched_users = []
+        for user in users:
+            count = db_service.get_daily_count(user.id, today)
+            user_data = user.dict()
+            user_data['today_count'] = count
+            enriched_users.append(user_data)
+        
+        return enriched_users
 
 @app.post("/admin/quota")
 async def update_user_quota(update: QuotaUpdate, admin: User = Depends(get_admin_user)):
@@ -257,7 +299,7 @@ async def delete_user(email: str, admin: User = Depends(get_admin_user)):
 
 @app.get("/quota")
 async def check_quota(user: dict = Depends(get_current_user)):
-    today = datetime.now().strftime('%Y-%m-%d')
+    today = get_paris_today()
     db_user = db_service.get_or_create_user(user['email'])
     count = db_service.get_daily_count(db_user.id, today)
     return {
@@ -271,19 +313,19 @@ async def health_check():
     return {"status": "ok", "timestamp": time.time()}
 
 async def get_country_stats(country):
+    global http_client
     try:
-        async with httpx.AsyncClient() as client:
-            url = f"https://restcountries.com/v3.1/name/{country}?fullText=true"
-            response = await client.get(url, timeout=10.0)
-            if response.status_code == 200:
-                data = response.json()[0]
-                return {
-                    "population": data.get("population", "N/A"),
-                    "region": data.get("region", "N/A"),
-                    "subregion": data.get("subregion", "N/A"),
-                    "capital": data.get("capital", ["N/A"])[0],
-                    "flag_emoji": data.get("flag", "")
-                }
+        url = f"https://restcountries.com/v3.1/name/{country}?fullText=true"
+        response = await http_client.get(url, timeout=10.0)
+        if response.status_code == 200:
+            data = response.json()[0]
+            return {
+                "population": data.get("population", "N/A"),
+                "region": data.get("region", "N/A"),
+                "subregion": data.get("subregion", "N/A"),
+                "capital": data.get("capital", ["N/A"])[0],
+                "flag_emoji": data.get("flag", "")
+            }
     except Exception as e:
         logger.error(f"Error fetching country stats for {country}: {e}")
     return None
@@ -300,7 +342,7 @@ async def get_country_news(
     if not country or country == "undefined":
         raise HTTPException(status_code=400, detail="Invalid country name.")
     
-    today = datetime.now().strftime('%Y-%m-%d')
+    today = get_paris_today()
     email = user['email']
     
     if not db_service.has_quota_remaining(email, today):
@@ -350,29 +392,29 @@ async def get_country_news(
         "temperature": 0.1
     }
 
-    async with httpx.AsyncClient() as client:
-        try:
-            response = await client.post(PERPLEXITY_URL, json=payload, headers=headers, timeout=30.0)
-            response.raise_for_status()
-            data = response.json()
-            stats = await stats_task
-            ai_content = data["choices"][0]["message"]["content"]
-            
-            clean_content = ai_content.replace("```json", "").replace("```", "").strip()
-            json_data = json.loads(clean_content)
-            news_list = json_data.get("news", [])
-            
-            db_user = db_service.get_or_create_user(email)
-            new_count = db_service.increment_quota(db_user.id, today)
-            
-            return {
-                "country": country, "time_filter": time_filter, "topic": topic,
-                "news": news_list, "trends": json_data.get("trends", []), "stats": stats,
-                "from_cache": False, "quota": new_count
-            }
-        except Exception as e:
-            logger.error(f"API Error: {str(e)}")
-            raise HTTPException(status_code=500, detail="Erreur de service news.")
+    global http_client
+    try:
+        response = await http_client.post(PERPLEXITY_URL, json=payload, headers=headers)
+        response.raise_for_status()
+        data = response.json()
+        stats = await stats_task
+        ai_content = data["choices"][0]["message"]["content"]
+        
+        clean_content = ai_content.replace("```json", "").replace("```", "").strip()
+        json_data = json.loads(clean_content)
+        news_list = json_data.get("news", [])
+        
+        db_user = db_service.get_or_create_user(email)
+        new_count = db_service.increment_quota(db_user.id, today)
+        
+        return {
+            "country": country, "time_filter": time_filter, "topic": topic,
+            "news": news_list, "trends": json_data.get("trends", []), "stats": stats,
+            "from_cache": False, "quota": new_count
+        }
+    except Exception as e:
+        logger.error(f"API Error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Erreur de service news.")
 
 if __name__ == "__main__":
     import uvicorn

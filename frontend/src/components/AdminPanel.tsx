@@ -6,6 +6,7 @@ interface UserRecord {
   is_admin: boolean;
   is_active: boolean;
   max_daily_quota: number;
+  today_count: number;
 }
 
 interface AdminPanelProps {
@@ -153,14 +154,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
 
         <div className="p-4 sm:p-6 border-b border-[#30363d]/50 bg-white/[0.01]">
           <form onSubmit={addUser} className="flex gap-2">
-            <input 
+            <input
               type="email"
               placeholder="Authorize new email address..."
               value={newEmail}
               onChange={(e) => setNewEmail(e.target.value)}
               className="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-xs text-white focus:outline-none focus:border-blue-500/50"
             />
-            <button 
+            <button
               type="submit"
               className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-blue-500/20"
             >
@@ -183,21 +184,32 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
           ) : (
             <div className="space-y-3">
               {users.map(u => (
-                <div key={u.id} className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl hover:bg-white/[0.04] transition-all group flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div className="flex items-center gap-4 flex-1">
-                    <div className="flex flex-col flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className={`w-2 h-2 rounded-full ${u.is_active ? 'bg-green-500' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]'}`}></span>
-                        <span className={`text-sm font-bold truncate ${u.is_active ? 'text-white' : 'text-gray-500'}`}>{u.email}</span>
-                      </div>
-                      {u.is_admin && <span className="text-[8px] text-orange-500 font-black uppercase mt-0.5 ml-4">Matrix Architect</span>}
+                <div key={u.id} className="p-4 bg-white/[0.02] border border-white/5 rounded-2xl hover:bg-white/[0.04] transition-all group grid grid-cols-1 sm:grid-cols-[1fr_auto_auto_auto] items-center gap-4">
+                  {/* User Identity Column */}
+                  <div className="flex flex-col min-w-0">
+                    <div className="flex items-center gap-2 pr-4">
+                      <span className={`w-2 h-2 shrink-0 rounded-full ${u.is_active ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.3)]' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]'}`}></span>
+                      <span className={`text-sm font-bold truncate ${u.is_active ? 'text-white' : 'text-gray-500'}`} title={u.email}>{u.email}</span>
                     </div>
+                    {u.is_admin && <span className="text-[8px] text-orange-500 font-black uppercase mt-0.5 ml-4 tracking-wider">Matrix Architect</span>}
                   </div>
-                  
-                  <div className="flex items-center gap-4 justify-between sm:justify-end">
-                    <div className="flex flex-col items-end">
-                      <span className="text-[7px] text-gray-500 font-black uppercase mb-1 tracking-widest">Daily Quota</span>
-                      <input 
+
+                  {/* Stats & Controls Columns */}
+                  <div className="flex items-center gap-6 sm:gap-4 justify-between sm:justify-end">
+                    {/* Queries Today */}
+                    <div className="flex flex-col items-center w-20">
+                      <span className="text-[7px] text-gray-500 font-black uppercase mb-1 tracking-widest text-center">Queries Today</span>
+                      <div className="w-12 bg-black/40 border border-white/5 rounded-lg px-2 py-1 text-[10px] text-white font-mono text-center">
+                        {u.today_count || 0}
+                      </div>
+                    </div>
+
+                    <div className="h-8 w-[1px] bg-white/5 hidden sm:block"></div>
+
+                    {/* Daily Quota */}
+                    <div className="flex flex-col items-center w-20">
+                      <span className="text-[7px] text-gray-500 font-black uppercase mb-1 tracking-widest text-center">Daily Quota</span>
+                      <input
                         type="number"
                         defaultValue={u.max_daily_quota}
                         className="w-12 bg-black/40 border border-white/10 rounded-lg px-2 py-1 text-[10px] text-blue-400 font-mono text-center focus:outline-none focus:border-blue-500/50"
@@ -207,13 +219,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
                         }}
                       />
                     </div>
-                    
+
                     <div className="h-8 w-[1px] bg-white/5 hidden sm:block"></div>
-                    
-                    <div className="flex gap-2">
-                      <button 
+
+                    {/* Actions */}
+                    <div className="flex gap-2 w-24 justify-end">
+                      <button
                         onClick={() => toggleStatus(u.email, u.is_active)}
-                        className={`px-3 py-1.5 rounded-xl border transition-all flex items-center gap-2 ${u.is_active ? 'bg-green-500/10 border-green-500/20 text-green-500' : 'bg-red-500/10 border-red-500/20 text-red-500'}`}
+                        className={`px-3 py-1.5 rounded-xl border transition-all flex items-center gap-2 ${u.is_active ? 'bg-green-500/10 border-green-500/20 text-green-500 hover:bg-green-500/20' : 'bg-red-500/10 border-red-500/20 text-red-500 hover:bg-red-500/20'}`}
                         title={u.is_active ? "Deactivate User" : "Activate User"}
                       >
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
@@ -221,7 +234,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
                         </svg>
                         <span className="text-[9px] font-black uppercase">{u.is_active ? 'Active' : 'Banned'}</span>
                       </button>
-                      <button 
+                      <button
                         onClick={() => deleteUser(u.email)}
                         className="p-2 bg-white/5 border border-white/10 rounded-xl text-gray-500 hover:bg-red-500/10 hover:border-red-500/20 hover:text-red-500 transition-all"
                         title="Remove User"
@@ -235,7 +248,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
             </div>
           )}
         </div>
-        
+
         <div className="p-4 bg-black/40 border-t border-[#30363d] flex justify-between items-center px-6">
           <span className="italic text-gray-700 text-[8px] font-bold tracking-widest uppercase">Authorization Level: Secure Architect Access</span>
           <button
