@@ -13,7 +13,8 @@ Thumbs.db
 .env.development.local
 .env.test.local
 .env.production.local
-*.env*
+.env.tunnel
+!.env.example
 
 # Dependencies
 node_modules/

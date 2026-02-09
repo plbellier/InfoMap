@@ -1,7 +1,5 @@
-FROM node:20-alpine
-
-# Create a non-privileged user
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+# Stage 1: Build
+FROM node:20-alpine as build-stage
 
 WORKDIR /app
 
@@ -12,12 +10,20 @@ COPY package*.json ./
 RUN npm install
 
 COPY . .
+RUN npm run build
 
-# Ensure appuser owns everything including node_modules
-RUN chown -R appuser:appgroup /app
+# Stage 2: Production
+FROM nginx:stable-alpine as production-stage
 
-USER appuser
+# Create a non-privileged user for security (though Nginx usually runs as nginx)
+# In alpine, the nginx user usually exists already.
 
-EXPOSE 5173
+# Copy build assets from stage 1
+COPY --from=build-stage /app/dist /usr/share/nginx/html
 
-CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+# Copy custom nginx config
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+EXPOSE 80
+
+CMD ["nginx", "-g", "daemon off;"]

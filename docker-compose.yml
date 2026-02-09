@@ -2,7 +2,7 @@ services:
   backend:
     build: ./backend
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000" # Restricted to localhost only (security)
     volumes:
       - ./backend:/app
       - /app/__pycache__
@@ -14,15 +14,14 @@ services:
       - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-https://infomap.ovh,http://localhost:5173}
       - FRONTEND_URL=${FRONTEND_URL:-https://infomap.ovh}
       - DATABASE_URL=sqlite:////app/infomap.db
+      - ENVIRONMENT=${ENVIRONMENT:-production}
+      - ADMIN_EMAIL=${ADMIN_EMAIL:-pl.bellier@gmail.com}
     restart: unless-stopped
 
   frontend:
     build: ./frontend
     expose:
-      - "5173"
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
+      - "80"
     depends_on:
       - backend
     restart: unless-stopped
