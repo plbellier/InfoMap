@@ -151,13 +151,14 @@ class UserCreate(BaseModel):
 
 @app.get("/login")
 async def login(request: Request):
-    # En production, on force l'URL exacte attendue par Google
+    # In production, force the exact URL expected by Google
     if request.base_url.hostname == "infomap.ovh":
         redirect_uri = "https://infomap.ovh/api/auth"
     else:
         redirect_uri = str(request.url_for('auth'))
     
     logger.info(f"Redirecting to Google with URI: {redirect_uri}")
+
     return await oauth.google.authorize_redirect(request, redirect_uri)
 
 @app.get("/auth")
@@ -354,14 +355,14 @@ async def get_country_news(
     if topic not in ["General", "Economy", "Politics", "Tech", "Military"]:
         topic = "General"
 
-    time_str = "au cours des dernières 24 heures" if time_filter == "24h" else "strictement depuis lundi dernier (cette semaine)"
+    time_str = "in the last 24 hours" if time_filter == "24h" else "strictly since last Monday (this week)"
     
     templates = {
-        "General": f"Identifie les 5 événements majeurs qui font actuellement la une en {country}. Privilégie les faits marquants ayant un impact national {time_str}.",
-        "Politics": f"Cherche les 5 développements les plus importants concernant la politique intérieure, le gouvernement, les élections et les nouvelles législations en {country} {time_str}.",
-        "Economy": f"Fais un rapport sur les 5 points clés de l'actualité économique en {country} {time_str}.",
-        "Tech": f"Quelles sont les 5 actualités technologiques et scientifiques les plus marquantes en {country} {time_str} ?",
-        "Military": f"Analyse la situation sécuritaire en {country} {time_str}."
+        "General": f"Identify the 5 major events currently making headlines in {country}. Focus on significant facts with national impact {time_str}.",
+        "Politics": f"Find the 5 most important developments regarding domestic politics, government, elections and new legislation in {country} {time_str}.",
+        "Economy": f"Report on the 5 key economic news items in {country} {time_str}.",
+        "Tech": f"What are the 5 most notable tech and science news stories in {country} {time_str}?",
+        "Military": f"Analyze the security situation in {country} {time_str}."
     }
 
     user_prompt = templates[topic]
@@ -377,9 +378,9 @@ async def get_country_news(
         }
 
     system_prompt = (
-        "Tu es un analyste de renseignement expert. Retourne UNIQUEMENT un objet JSON valide contenant :\n"
-        "1. 'news': une liste de 5 items avec 'titre', 'date', 'source_url'.\n"
-        "PAS de texte introductif, juste le JSON."
+        "You are an expert intelligence analyst. Return ONLY a valid JSON object containing:\n"
+        "1. 'news': a list of 5 items with 'titre', 'date', 'source_url'.\n"
+        "NO introductory text, just the JSON."
     )
     
     headers = {"Authorization": f"Bearer {PERPLEXITY_API_KEY}", "Content-Type": "application/json"}
@@ -414,7 +415,7 @@ async def get_country_news(
         }
     except Exception as e:
         logger.error(f"API Error: {str(e)}")
-        raise HTTPException(status_code=500, detail="Erreur de service news.")
+        raise HTTPException(status_code=500, detail="News service error.")
 
 if __name__ == "__main__":
     import uvicorn
