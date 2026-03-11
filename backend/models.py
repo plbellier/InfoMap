@@ -41,3 +41,12 @@ class QueryHistory(SQLModel, table=True):
     
     # Relationship to user
     user: Optional[User] = Relationship(back_populates="history")
+
+class GlobalCache(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    country: str = Field(index=True)
+    time_filter: str = Field(index=True)
+    topic: str = Field(index=True)
+    news_json: str
+    stats_json: Optional[str] = None
+    created_at: datetime = Field(default_factory=datetime.utcnow, index=True)

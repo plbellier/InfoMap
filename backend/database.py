@@ -64,8 +64,60 @@ class DatabaseService:
         count = self.get_daily_count(user.id, date_str)
         return count < user.max_daily_quota
 
+    def reserve_quota(self, user_id: int, date_str: str, max_quota: int) -> Optional[int]:
+        """Atomically increment quota only if under max_quota."""
+        with Session(self.engine) as session:
+            statement = select(DailyQuota).where(
+                DailyQuota.user_id == user_id, 
+                DailyQuota.date == date_str
+            ).with_for_update()
+            quota = session.exec(statement).first()
+            
+            current_count = quota.count if quota else 0
+            if current_count >= max_quota:
+                return None
+            
+            if not quota:
+                quota = DailyQuota(user_id=user_id, date=date_str, count=1)
+                session.add(quota)
+            else:
+                quota.count += 1
+                session.add(quota)
+            
+            session.commit()
+            session.refresh(quota)
+            return quota.count
+
+    def get_cached_news(self, country: str, time_filter: str, topic: str):
+        from models import GlobalCache
+        from datetime import timedelta
+        cutoff = datetime.utcnow() - timedelta(hours=4)
+        
+        with Session(self.engine) as session:
+            statement = select(GlobalCache).where(
+                GlobalCache.country == country,
+                GlobalCache.time_filter == time_filter,
+                GlobalCache.topic == topic,
+                GlobalCache.created_at >= cutoff
+            ).order_by(GlobalCache.created_at.desc())
+            return session.exec(statement).first()
+
+    def set_cached_news(self, country: str, time_filter: str, topic: str, news_json: str, stats_json: Optional[str]):
+        from models import GlobalCache
+        with Session(self.engine) as session:
+            cache_entry = GlobalCache(
+                country=country,
+                time_filter=time_filter,
+                topic=topic,
+                news_json=news_json,
+                stats_json=stats_json
+            )
+            session.add(cache_entry)
+            session.commit()
+
 # Global instance initialization helper
 def get_db_service(sqlite_url: str):
     engine = create_engine(sqlite_url)
+    from models import User, DailyQuota, QueryHistory, GlobalCache
     SQLModel.metadata.create_all(engine)
     return DatabaseService(engine)

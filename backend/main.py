@@ -399,15 +399,31 @@ async def get_country_news(
     
     today = get_paris_today()
     email = user['email']
-    
-    if not db_service.has_quota_remaining(email, today):
-        logger.warning(f"Quota EXCEEDED for {email}")
-        raise HTTPException(status_code=429, detail="Daily API quota reached.")
+    db_user = db_service.get_or_create_user(email)
 
     if time_filter not in ["24h", "7d"]:
         time_filter = "24h"
     if topic not in ["General", "Economy", "Politics", "Tech", "Military"]:
         topic = "General"
+
+    # 1. Check Global Cache first
+    cached = db_service.get_cached_news(country, time_filter, topic)
+    if cached:
+        logger.info(f"Cache HIT for {country}/{topic}")
+        # Still need to provide quota info to frontend
+        current_count = db_service.get_daily_count(db_user.id, today)
+        return {
+            "country": country, "time_filter": time_filter, "topic": topic,
+            "news": json.loads(cached.news_json), "trends": [], 
+            "stats": json.loads(cached.stats_json) if cached.stats_json else None,
+            "from_cache": True, "quota": current_count
+        }
+
+    # 2. Check and Reserve Quota (BEFORE API call)
+    new_count = db_service.reserve_quota(db_user.id, today, db_user.max_daily_quota)
+    if new_count is None:
+        logger.warning(f"Quota EXCEEDED for {email}")
+        raise HTTPException(status_code=429, detail="Daily API quota reached.")
 
     time_str = "in the last 24 hours" if time_filter == "24h" else "strictly since last Monday (this week)"
     
@@ -428,7 +444,7 @@ async def get_country_news(
         return {
             "country": country, "time_filter": time_filter, "topic": topic,
             "news": mock_data, "trends": [], "stats": stats, "from_cache": False,
-            "quota": db_service.get_daily_count(db_service.get_or_create_user(email).id, today)
+            "quota": new_count
         }
 
     system_prompt = (
@@ -459,10 +475,14 @@ async def get_country_news(
         json_data = json.loads(clean_content)
         news_list = json_data.get("news", [])
         
-        db_user = db_service.get_or_create_user(email)
-        new_count = db_service.increment_quota(db_user.id, today)
+        # 3. Save to Global Cache
+        db_service.set_cached_news(
+            country, time_filter, topic, 
+            json.dumps(news_list), 
+            json.dumps(stats) if stats else None
+        )
         
-        # Save to history
+        # 4. Save to User History
         from sqlmodel import Session
         with Session(db_service.engine) as session:
             history_item = QueryHistory(
